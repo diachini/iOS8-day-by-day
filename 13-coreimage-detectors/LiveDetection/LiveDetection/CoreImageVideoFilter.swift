@@ -71,7 +71,13 @@ class CoreImageVideoFilter: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     // Input from video camera
     let device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
     var error: NSError?
-    let input = AVCaptureDeviceInput(device: device, error: &error)
+    let input: AVCaptureDeviceInput!
+    do {
+      input = try AVCaptureDeviceInput(device: device)
+    } catch var error1 as NSError {
+      error = error1
+      input = nil
+    }
     
     // Start out with low quality
     let session = AVCaptureSession()
@@ -80,7 +86,8 @@ class CoreImageVideoFilter: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     // Output
     let videoOutput = AVCaptureVideoDataOutput()
     
-    videoOutput.videoSettings = [ kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA]
+//    videoOutput.videoSettings = [ kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)]
+    videoOutput.videoSettings = NSDictionary(object: Int(kCVPixelFormatType_32BGRA), forKey: kCVPixelBufferPixelFormatTypeKey as String) as! [NSObject : AnyObject]
     videoOutput.alwaysDiscardsLateVideoFrames = true
     videoOutput.setSampleBufferDelegate(self, queue: sessionQueue)
     
@@ -99,7 +106,8 @@ class CoreImageVideoFilter: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     // Need to shimmy this through type-hell
     let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
     // Force the type change - pass through opaque buffer
-    let opaqueBuffer = Unmanaged<CVImageBuffer>.passUnretained(imageBuffer).toOpaque()
+//    let opaqueBuffer = Unmanaged<CVImageBuffer>.passUnretained(imageBuffer).toOpaque()
+    let opaqueBuffer = Unmanaged<CVImageBuffer>.passUnretained(imageBuffer!).toOpaque()
     let pixelBuffer = Unmanaged<CVPixelBuffer>.fromOpaque(opaqueBuffer).takeUnretainedValue()
     
     let sourceImage = CIImage(CVPixelBuffer: pixelBuffer, options: nil)
@@ -112,7 +120,7 @@ class CoreImageVideoFilter: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
     }
     
     // Do some clipping
-    var drawFrame = outputImage.extent()
+    var drawFrame = outputImage.extent
     let imageAR = drawFrame.width / drawFrame.height
     let viewAR = videoDisplayViewBounds.width / videoDisplayViewBounds.height
     if imageAR > viewAR {
